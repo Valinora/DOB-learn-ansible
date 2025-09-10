@@ -1,52 +1,55 @@
 ---
 - hosts: all
-  become: yes
+  become: true
   tasks:
-    - name: Create actions-runner user
+    - name: Install packages
+      apt:
+        name:
+          - acl
+        state: present
+
+    - name: Ensure github-actions-runner group exists
+      group:
+        name: github-actions-runner
+        state: present
+
+    - name: Ensure github-actions-runner user exists
       user:
-        name: actions-runner
-        create_home: yes
-        shell: /bin/bash
-
-    - name: Create actions-runner directory
-      file:
-        path: /actions-runner
-        state: directory
-        owner: actions-runner
-        group: actions-runner
-        mode: "0755"
-
+        name: github-actions-runner
+        group: github-actions-runner
+        home: /home/github-actions-runner
+        state: present
 
     - name: Download the latest runner package
       get_url:
         url: https://github.com/actions/runner/releases/download/v2.328.0/actions-runner-linux-arm64-2.328.0.tar.gz
-        dest: /actions-runner/actions-runner-linux-arm64-2.328.0.tar.gz
+        dest: /home/github-actions-runner/actions-runner-linux-arm64-2.328.0.tar.gz
         mode: "0644"
-        owner: actions-runner
-        group: actions-runner
-
-    - name: Validate the hash
-      command: |
-        echo "b801b9809c4d9301932bccadf57ca13533073b2aa9fa9b8e625a8db905b5d8eb  actions-runner-linux-arm64-2.328.0.tar.gz" | shasum -a 256 -c
+        owner: github-actions-runner
+        group: github-actions-runner
 
     - name: Extract the installer
       unarchive:
-        src: /actions-runner/actions-runner-linux-arm64-2.328.0.tar.gz
-        dest: /actions-runner
-        owner: actions-runner
-        group: actions-runner
+        src: /home/github-actions-runner/actions-runner-linux-arm64-2.328.0.tar.gz
+        dest: /home/github-actions-runner
         remote_src: yes
 
-    - name: Configure the runner
-      command: ./config.sh --url https://github.com/madisonewebb/DOB-learn-ansible --token BFSAKIU5LNORJUTUZWYYQ7DIYCUSS
-      args:
-        chdir: /actions-runner
-      become: no
-      remote_user: actions-runner
+    - name: Ensure runner directory ownership recursively
+      file:
+        path: /home/github-actions-runner
+        state: directory
+        owner: github-actions-runner
+        group: github-actions-runner
+        recurse: yes
+
+#    - name: Configure the runner
+#      command: ./config.sh --url https://github.com/n0rq1/DOB-learn-ansible --token AVLVZXA6V24P4TL6OAZMZDDIYG2LC --unattended 
+#      args:
+#        chdir: /home/github-actions-runner
+#      become_user: github-actions-runner
 
     - name: Start the runner
-      command: ./run.sh
+      command: ./run.sh --unattended
       args:
-        chdir: /actions-runner
-      become: yes
-      become_user: actions-runner
+        chdir: /home/github-actions-runner
+      become_user: github-actions-runner
