@@ -27,29 +27,41 @@
         mode: "0644"
         owner: github-actions-runner
         group: github-actions-runner
+        force: no
+      register: pkg
 
     - name: Extract the installer
       unarchive:
         src: /home/github-actions-runner/actions-runner-linux-arm64-2.328.0.tar.gz
         dest: /home/github-actions-runner
         remote_src: yes
+      when: pkg.changed
 
-    - name: Ensure runner directory ownership recursively
-      file:
-        path: /home/github-actions-runner
-        state: directory
-        owner: github-actions-runner
-        group: github-actions-runner
-        recurse: yes
+    - name: Check if runner is already configured
+      stat:
+        path: /home/github-actions-runner/.runner
+      register: cfg
 
-#    - name: Configure the runner
-#      command: ./config.sh --url https://github.com/n0rq1/DOB-learn-ansible --token AVLVZXA6V24P4TL6OAZMZDDIYG2LC --unattended 
-#      args:
-#        chdir: /home/github-actions-runner
-#      become_user: github-actions-runner
-
-    - name: Start the runner
-      command: ./run.sh --unattended
+    - name: Configure the runner
+      command: ./config.sh --url https://github.com/n0rq1/DOB-learn-ansible --token AVLVZXE3SFLSC3WPQAJZAWTIYHYYU --unattended
       args:
         chdir: /home/github-actions-runner
+        creates: /home/github-actions-runner/.runner
       become_user: github-actions-runner
+      when: not cfg.stat.exists
+
+    - name: Uninstall any existing runner service
+      command: ./svc.sh uninstall
+      args:
+        chdir: /home/github-actions-runner
+      ignore_errors: true
+
+    - name: Install the runner service for github-actions-runner user
+      command: ./svc.sh install github-actions-runner
+      args:
+        chdir: /home/github-actions-runner
+
+    - name: Start the runner service
+      command: ./svc.sh start
+      args:
+        chdir: /home/github-actions-runner

@@ -1,0 +1,7 @@
+#    - name: Ensure runner directory ownership recursively
+#      file:
+#        path: /home/github-actions-runner
+#        state: directory
+#        owner: github-actions-runner
+#        group: github-actions-runner
+#        recurse: yes
