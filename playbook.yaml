@@ -22,7 +22,14 @@
 - hosts: ec2hosts
   become: true
   user: ubuntu
+  gather_facts: False
   tasks:
+    - name: Wait for SSH connection to be established
+      ansible.builtin.wait_for_connection:
+        delay: 60
+        sleep: 10
+        timeout: 600
+
     - name: Install packages
       apt:
         name:
