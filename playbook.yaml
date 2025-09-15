@@ -1,6 +1,27 @@
 ---
-- hosts: all
+- hosts: localhost
+  gather_facts: False
+  tasks:
+    - name: Provision Instance
+      amazon.aws.ec2_instance:
+        name: colin-dob-ansible
+        vpc_subnet_id: subnet-05e4ee8816e100972
+        key_name: colin-ansible
+        instance_type: t2.micro
+        security_group: default
+        network:
+          assign_public_ip: True
+        image_id: ami-00271c85bf8a52b84
+      register: result
+
+    - name: Add to host group
+      add_host: hostname={{ item.public_ip_address }} groups=ec2hosts
+      loop: "{{ result.instances }}"
+
+
+- hosts: ec2hosts
   become: true
+  user: ubuntu
   tasks:
     - name: Install packages
       apt:
@@ -22,8 +43,8 @@
 
     - name: Download the latest runner package
       get_url:
-        url: https://github.com/actions/runner/releases/download/v2.328.0/actions-runner-linux-arm64-2.328.0.tar.gz
-        dest: /home/github-actions-runner/actions-runner-linux-arm64-2.328.0.tar.gz
+        url: https://github.com/actions/runner/releases/download/v2.328.0/actions-runner-linux-x64-2.328.0.tar.gz
+        dest: /home/github-actions-runner/actions-runner-linux-x64-2.328.0.tar.gz
         mode: "0644"
         owner: github-actions-runner
         group: github-actions-runner
@@ -32,9 +53,15 @@
 
     - name: Extract the installer
       unarchive:
-        src: /home/github-actions-runner/actions-runner-linux-arm64-2.328.0.tar.gz
+        src: /home/github-actions-runner/actions-runner-linux-x64-2.328.0.tar.gz
         dest: /home/github-actions-runner
         remote_src: yes
+      when: pkg.changed
+
+    - name: Install runner dependencies
+      command: ./bin/installdependencies.sh
+      args:
+        chdir: /home/github-actions-runner
       when: pkg.changed
 
     - name: Check if runner is already configured
@@ -43,7 +70,7 @@
       register: cfg
 
     - name: Configure the runner
-      command: ./config.sh --url https://github.com/n0rq1/DOB-learn-ansible --token AVLVZXE3SFLSC3WPQAJZAWTIYHYYU --unattended
+      command: ./config.sh --url https://github.com/Valinora/dob-tf --token AAIUJBGCKNFYWIGZU6JC6UTIZA6UM --unattended
       args:
         chdir: /home/github-actions-runner
         creates: /home/github-actions-runner/.runner
